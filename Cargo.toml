@@ -1,0 +1,9 @@
+[package]
+name = "gwip"
+version = "0.1.0"
+authors = ["HKey <s06139@gmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
