@@ -7,7 +7,7 @@ the specified cell of gridded display.
 
 ## Demo
 
-TODO
+![screencast](./screencast/screencast.gif)
 
 ## Installation
 
