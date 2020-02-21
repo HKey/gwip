@@ -33,6 +33,29 @@ Options:
                               Example: "--place=0,0"
     --xdotool=<cmd>           Command of xdotool. [default: xdotool]
     --xwininfo=<cmd>          Command of xwininfo. [default: xwininfo]
+
+Commands:
+    move
+        Move the focused window to the specified place.
+        The display is divided into grid by "--grid" parameter.
+        The window will be moved to the center of the cell in the grid
+        specified by "--place" parameter.
+        The line and the column of a cell is counted from top left
+        and zero based.
+
+        Example:
+            $ gwip move --grid=2x3 --place=0,1
+
+                            ncolumns = 3
+                      |-----------------------|
+
+                   -  +-------+-------+-------+
+                   |  |  0,0  |  0,1  |  0,2  |
+                   |  |       | here! |       |
+        nlines = 2 |  |-------+-------+-------|
+                   |  |  1,0  |  1,1  |  1,2  |
+                   |  |       |       |       |
+                   -  +-------+-------+-------+
 ```
 
 ## Dependency
