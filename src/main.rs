@@ -1,23 +1,24 @@
 use std::process;
 use std::process::Command;
+use std::cmp;
 use docopt::Docopt;
 use serde::Deserialize;
 use regex::Regex;
 
 
 struct WindowGeometry {
-    // x: u32,
-    // y: u32,
-    w: u32,
-    h: u32,
+    // x: i32,
+    // y: i32,
+    w: i32,
+    h: i32,
 }
 
 struct DisplayGeometry {
-    w: u32,
-    h: u32,
+    w: i32,
+    h: i32,
 }
 
-type WindowID = u32;
+type WindowID = i32;
 
 // FIXME: unwrapping in utility functions may be not good
 fn get_window_geometry(id: WindowID, xwininfo: &str) -> WindowGeometry {
@@ -29,7 +30,7 @@ fn get_window_geometry(id: WindowID, xwininfo: &str) -> WindowGeometry {
         .stdout;
     let output = String::from_utf8(output).unwrap();
 
-    fn parse_value(header: &str, output: &str) -> u32 {
+    fn parse_value(header: &str, output: &str) -> i32 {
         let re = format!(r"(?m)^[ ]*{}[ ]+(\d+)$", regex::escape(&header));
         Regex::new(&re).unwrap()
             .captures(&output).unwrap()[1]
@@ -71,7 +72,7 @@ fn get_display_geometry(xdotool: &str) -> DisplayGeometry {
     }
 }
 
-fn move_window(id: WindowID, x: u32, y: u32, xdotool: &str) {
+fn move_window(id: WindowID, x: i32, y: i32, xdotool: &str) {
     Command::new(xdotool)
         .arg("windowmove")
         .arg(id.to_string())
@@ -82,8 +83,8 @@ fn move_window(id: WindowID, x: u32, y: u32, xdotool: &str) {
 }
 
 fn move_window_in_grid(id: WindowID,
-                       nlines: u32, ncolumns: u32,
-                       line: u32, column: u32,
+                       nlines: i32, ncolumns: i32,
+                       line: i32, column: i32,
                        xdotool: &str, xwininfo: &str) {
     let display = get_display_geometry(xdotool);
     let window = get_window_geometry(id, xwininfo);
@@ -93,30 +94,16 @@ fn move_window_in_grid(id: WindowID,
     assert!(line < nlines);
     assert!(column < ncolumns);
 
-    let cell_w = (display.w / ncolumns) as i64;
-    let cell_h = (display.h / nlines) as i64;
-    let line = line as i64;
-    let column = column as i64;
-    let win_w = window.w as i64;
-    let win_h = window.h as i64;
+    let cell_w = display.w / ncolumns;
+    let cell_h = display.h / nlines;
 
-    let new_x = cell_w * column + (cell_w - win_w) / 2;
-    let new_y = cell_h * line + (cell_h - win_h) / 2;
+    let x = cell_w * column + (cell_w - window.w) / 2;
+    let y = cell_h * line + (cell_h - window.h) / 2;
 
-    fn i64_to_u32_minus_as_zero(n: i64) -> Option<u32> {
-        if n > (u32::max_value() as i64) {
-            return None
-        } else if n < (u32::min_value() as i64) {
-            return Some(0)
-        } else {
-            return Some(n as u32)
-        }
-    }
+    let x = cmp::max(cmp::min(x, display.w - window.w), 0);
+    let y = cmp::max(cmp::min(y, display.h - window.h), 0);
 
-    move_window(id,
-                i64_to_u32_minus_as_zero(new_x).unwrap(),
-                i64_to_u32_minus_as_zero(new_y).unwrap(),
-                xdotool);
+    move_window(id, x, y, xdotool);
 }
 
 
@@ -183,26 +170,26 @@ fn main() {
 
     // move command
     if args.cmd_move {
-        fn parse_grid(s: &str) -> u32 {
+        fn parse_grid(s: &str) -> i32 {
             let msg = &format!("Invalid argument, \"{}\" in --grid", s);
             s.parse().expect(msg)
         }
 
         let grid: Vec<&str> = args.flag_grid.split("x").collect();
         assert!(grid.len() == 2);
-        let nlines: u32 = parse_grid(grid[0]);
-        let ncolumns: u32 = parse_grid(grid[1]);
+        let nlines: i32 = parse_grid(grid[0]);
+        let ncolumns: i32 = parse_grid(grid[1]);
 
 
-        fn parse_place(s: &str) -> u32 {
+        fn parse_place(s: &str) -> i32 {
             let msg = &format!("Invalid argument, \"{}\" in --place", s);
             s.parse().expect(msg)
         }
 
         let place: Vec<&str> = args.flag_place.split(",").collect();
         assert!(place.len() == 2);
-        let line: u32 = parse_place(place[0]);
-        let column: u32 = parse_place(place[1]);
+        let line: i32 = parse_place(place[0]);
+        let column: i32 = parse_place(place[1]);
 
         let id = get_focused_window_id(&args.flag_xdotool);
 
