@@ -21,8 +21,7 @@ $ cargo install --git 'https://github.com/HKey/gwip.git'
 Gridded Window Placer
 
 Usage:
-    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN>
-              [--xdotool=<cmd>] [--xwininfo=<cmd>]
+    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN> [options]
     gwip -h | --help
 
 Options:
@@ -31,6 +30,15 @@ Options:
                               Example: "--grid=2x1"
     --place=<LINE,COLUMN>     Where move the focused window to.
                               Example: "--place=0,0"
+    --fill                    Resize the window to fill the cell where the
+                              the window will be moved to.
+    --gap=<WIDTHxHEIGHT>      For "--fill", do not fill each edge of the
+                              window.  WIDTH is a width of left and right edge.
+                              HEIGHT is a height of top and bottom edge.
+                              WIDTH and HEIGHT is a number or a percentage.
+                              A number means the number of pixels, a percentage
+                              means the percentage of the desktop width
+                              or height.
     --xdotool=<cmd>           Command of xdotool. [default: xdotool]
     --xwininfo=<cmd>          Command of xwininfo. [default: xwininfo]
 

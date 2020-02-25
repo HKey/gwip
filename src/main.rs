@@ -106,13 +106,33 @@ fn move_window_in_grid(id: WindowID,
     move_window(id, x, y, xdotool);
 }
 
+fn resize_window(id: WindowID, width: i32, height: i32, xdotool: &str)
+                 -> Result<(), std::io::Error> {
+    Command::new(xdotool)
+        .arg("windowsize")
+        .arg(id.to_string())
+        .arg(width.to_string())
+        .arg(height.to_string())
+        .status()
+        .map(|_| ())
+}
+
+fn resize_window_to_fill(id: WindowID, nlines: i32, ncolumns: i32,
+                         gap_w: i32, gap_h: i32,
+                         display: &DisplayGeometry, xdotool: &str)
+                         -> Result<(), std::io::Error> {
+    let width = display.w / ncolumns - gap_w * 2;
+    let height = display.h / nlines - gap_h * 2;
+
+    resize_window(id, width, height, xdotool)
+}
+
 
 const USAGE: &'static str = "
 Gridded Window Placer
 
 Usage:
-    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN>
-              [--xdotool=<cmd>] [--xwininfo=<cmd>]
+    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN> [options]
     gwip -h | --help
 
 Options:
@@ -121,6 +141,15 @@ Options:
                               Example: \"--grid=2x1\"
     --place=<LINE,COLUMN>     Where move the focused window to.
                               Example: \"--place=0,0\"
+    --fill                    Resize the window to fill the cell where the
+                              the window will be moved to.
+    --gap=<WIDTHxHEIGHT>      For \"--fill\", do not fill each edge of the
+                              window.  WIDTH is a width of left and right edge.
+                              HEIGHT is a height of top and bottom edge.
+                              WIDTH and HEIGHT is a number or a percentage.
+                              A number means the number of pixels, a percentage
+                              means the percentage of the desktop width
+                              or height.
     --xdotool=<cmd>           Command of xdotool. [default: xdotool]
     --xwininfo=<cmd>          Command of xwininfo. [default: xwininfo]
 
@@ -152,9 +181,30 @@ Commands:
 struct Args {
     flag_grid: String,
     flag_place: String,
+    flag_fill: bool,
+    flag_gap: Option<String>,
     flag_xdotool: String,
     flag_xwininfo: String,
     cmd_move: bool,
+}
+
+enum IntOrPercent {
+    Int(i32),
+    Percent(f32),
+}
+
+fn parse_int_or_percent(s: &str) -> Result<IntOrPercent, String> {
+    let s = s.trim();
+    if s.ends_with("%") {
+        s[..s.len()-1]
+            .parse()
+            .map(|p: f32| IntOrPercent::Percent(p / 100.0))
+            .map_err(|e: std::num::ParseFloatError| e.to_string())
+    } else {
+        s.parse()
+            .map(|i| IntOrPercent::Int(i))
+            .map_err(|e| e.to_string())
+    }
 }
 
 fn main() {
@@ -193,6 +243,33 @@ fn main() {
 
         let id = get_focused_window_id(&args.flag_xdotool);
 
+        if args.flag_fill {
+            let display = get_display_geometry(&args.flag_xdotool);
+
+            let mut gap_w = 0;
+            let mut gap_h = 0;
+
+            if let Some(s) = &args.flag_gap {
+                fn percent_to_pixel(ip: IntOrPercent, base: i32) -> i32 {
+                    match ip {
+                        IntOrPercent::Int(i) => i,
+                        IntOrPercent::Percent(f) => (f * base as f32) as i32,
+                    }
+                }
+
+                let gaps: Vec<&str> = s.split("x").collect();
+                gap_w = percent_to_pixel(parse_int_or_percent(&gaps[0])
+                                         .unwrap(),
+                                         display.w);
+                gap_h = percent_to_pixel(parse_int_or_percent(&gaps[1])
+                                         .unwrap(),
+                                         display.w);
+            }
+
+            resize_window_to_fill(id, nlines, ncolumns,
+                                  gap_w, gap_h,
+                                  &display, &args.flag_xdotool).unwrap();
+        }
         move_window_in_grid(id, nlines, ncolumns, line, column,
                             &args.flag_xdotool, &args.flag_xwininfo);
     }
