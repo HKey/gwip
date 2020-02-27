@@ -21,26 +21,26 @@ $ cargo install --git 'https://github.com/HKey/gwip.git'
 Gridded Window Placer
 
 Usage:
-    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN> [options]
+    gwip move --grid=<NROWSxNCOLUMNS> --place=<ROW,COLUMN> [options]
     gwip -h | --help
 
 Options:
-    -h, --help                Show this screen.
-    --grid=<NLINESxNCOLUMNS>  How to divide screen.
-                              Example: "--grid=2x1"
-    --place=<LINE,COLUMN>     Where move the focused window to.
-                              Example: "--place=0,0"
-    --fill                    Resize the window to fill the cell where the
-                              the window will be moved to.
-    --gap=<WIDTHxHEIGHT>      For "--fill", do not fill each edge of the
-                              window.  WIDTH is a width of left and right edge.
-                              HEIGHT is a height of top and bottom edge.
-                              WIDTH and HEIGHT is a number or a percentage.
-                              A number means the number of pixels, a percentage
-                              means the percentage of the desktop width
-                              or height.
-    --xdotool=<cmd>           Command of xdotool. [default: xdotool]
-    --xwininfo=<cmd>          Command of xwininfo. [default: xwininfo]
+    -h, --help               Show this screen.
+    --grid=<NROWSxNCOLUMNS>  How to divide screen.
+                             Example: "--grid=2x1"
+    --place=<ROW,COLUMN>     Where move the focused window to.
+                             Example: "--place=0,0"
+    --fill                   Resize the window to fill the cell where the
+                             the window will be moved to.
+    --gap=<WIDTHxHEIGHT>     For "--fill", do not fill each edge of the
+                             window.  WIDTH is a width of left and right edge.
+                             HEIGHT is a height of top and bottom edge.
+                             WIDTH and HEIGHT is a number or a percentage.
+                             A number means the number of pixels, a percentage
+                             means the percentage of the desktop width
+                             or height.
+    --xdotool=<cmd>          Command of xdotool. [default: xdotool]
+    --xwininfo=<cmd>         Command of xwininfo. [default: xwininfo]
 
 Commands:
     move
@@ -48,7 +48,7 @@ Commands:
         The display is divided into grid by "--grid" parameter.
         The window will be moved to the center of the cell in the grid
         specified by "--place" parameter.
-        The line and the column of a cell is counted from top left
+        The row and the column of a cell is counted from top left
         and zero based.
 
         Example:
@@ -60,7 +60,7 @@ Commands:
                    -  +-------+-------+-------+
                    |  |  0,0  |  0,1  |  0,2  |
                    |  |       | here! |       |
-        nlines = 2 |  |-------+-------+-------|
+         nrows = 2 |  |-------+-------+-------|
                    |  |  1,0  |  1,1  |  1,2  |
                    |  |       |       |       |
                    -  +-------+-------+-------+

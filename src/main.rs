@@ -83,22 +83,22 @@ fn move_window(id: WindowID, x: i32, y: i32, xdotool: &str) {
 }
 
 fn move_window_in_grid(id: WindowID,
-                       nlines: i32, ncolumns: i32,
-                       line: i32, column: i32,
+                       nrows: i32, ncolumns: i32,
+                       row: i32, column: i32,
                        xdotool: &str, xwininfo: &str) {
     let display = get_display_geometry(xdotool);
     let window = get_window_geometry(id, xwininfo);
 
-    assert!(nlines > 0);
+    assert!(nrows > 0);
     assert!(ncolumns > 0);
-    assert!(line < nlines);
+    assert!(row < nrows);
     assert!(column < ncolumns);
 
     let cell_w = display.w / ncolumns;
-    let cell_h = display.h / nlines;
+    let cell_h = display.h / nrows;
 
     let x = cell_w * column + (cell_w - window.w) / 2;
-    let y = cell_h * line + (cell_h - window.h) / 2;
+    let y = cell_h * row + (cell_h - window.h) / 2;
 
     let x = cmp::max(cmp::min(x, display.w - window.w), 0);
     let y = cmp::max(cmp::min(y, display.h - window.h), 0);
@@ -117,12 +117,12 @@ fn resize_window(id: WindowID, width: i32, height: i32, xdotool: &str)
         .map(|_| ())
 }
 
-fn resize_window_to_fill(id: WindowID, nlines: i32, ncolumns: i32,
+fn resize_window_to_fill(id: WindowID, nrows: i32, ncolumns: i32,
                          gap_w: i32, gap_h: i32,
                          display: &DisplayGeometry, xdotool: &str)
                          -> Result<(), std::io::Error> {
     let width = display.w / ncolumns - gap_w * 2;
-    let height = display.h / nlines - gap_h * 2;
+    let height = display.h / nrows - gap_h * 2;
 
     resize_window(id, width, height, xdotool)
 }
@@ -132,26 +132,26 @@ const USAGE: &'static str = "
 Gridded Window Placer
 
 Usage:
-    gwip move --grid=<NLINESxNCOLUMNS> --place=<LINE,COLUMN> [options]
+    gwip move --grid=<NROWSxNCOLUMNS> --place=<ROW,COLUMN> [options]
     gwip -h | --help
 
 Options:
-    -h, --help                Show this screen.
-    --grid=<NLINESxNCOLUMNS>  How to divide screen.
-                              Example: \"--grid=2x1\"
-    --place=<LINE,COLUMN>     Where move the focused window to.
-                              Example: \"--place=0,0\"
-    --fill                    Resize the window to fill the cell where the
-                              the window will be moved to.
-    --gap=<WIDTHxHEIGHT>      For \"--fill\", do not fill each edge of the
-                              window.  WIDTH is a width of left and right edge.
-                              HEIGHT is a height of top and bottom edge.
-                              WIDTH and HEIGHT is a number or a percentage.
-                              A number means the number of pixels, a percentage
-                              means the percentage of the desktop width
-                              or height.
-    --xdotool=<cmd>           Command of xdotool. [default: xdotool]
-    --xwininfo=<cmd>          Command of xwininfo. [default: xwininfo]
+    -h, --help               Show this screen.
+    --grid=<NROWSxNCOLUMNS>  How to divide screen.
+                             Example: \"--grid=2x1\"
+    --place=<ROW,COLUMN>     Where move the focused window to.
+                             Example: \"--place=0,0\"
+    --fill                   Resize the window to fill the cell where the
+                             the window will be moved to.
+    --gap=<WIDTHxHEIGHT>     For \"--fill\", do not fill each edge of the
+                             window.  WIDTH is a width of left and right edge.
+                             HEIGHT is a height of top and bottom edge.
+                             WIDTH and HEIGHT is a number or a percentage.
+                             A number means the number of pixels, a percentage
+                             means the percentage of the desktop width
+                             or height.
+    --xdotool=<cmd>          Command of xdotool. [default: xdotool]
+    --xwininfo=<cmd>         Command of xwininfo. [default: xwininfo]
 
 Commands:
     move
@@ -159,7 +159,7 @@ Commands:
         The display is divided into grid by \"--grid\" parameter.
         The window will be moved to the center of the cell in the grid
         specified by \"--place\" parameter.
-        The line and the column of a cell is counted from top left
+        The row and the column of a cell is counted from top left
         and zero based.
 
         Example:
@@ -171,7 +171,7 @@ Commands:
                    -  +-------+-------+-------+
                    |  |  0,0  |  0,1  |  0,2  |
                    |  |       | here! |       |
-        nlines = 2 |  |-------+-------+-------|
+         nrows = 2 |  |-------+-------+-------|
                    |  |  1,0  |  1,1  |  1,2  |
                    |  |       |       |       |
                    -  +-------+-------+-------+
@@ -227,7 +227,7 @@ fn main() {
 
         let grid: Vec<&str> = args.flag_grid.split("x").collect();
         assert!(grid.len() == 2);
-        let nlines: i32 = parse_grid(grid[0]);
+        let nrows: i32 = parse_grid(grid[0]);
         let ncolumns: i32 = parse_grid(grid[1]);
 
 
@@ -238,7 +238,7 @@ fn main() {
 
         let place: Vec<&str> = args.flag_place.split(",").collect();
         assert!(place.len() == 2);
-        let line: i32 = parse_place(place[0]);
+        let row: i32 = parse_place(place[0]);
         let column: i32 = parse_place(place[1]);
 
         let id = get_focused_window_id(&args.flag_xdotool);
@@ -266,11 +266,11 @@ fn main() {
                                          display.w);
             }
 
-            resize_window_to_fill(id, nlines, ncolumns,
+            resize_window_to_fill(id, nrows, ncolumns,
                                   gap_w, gap_h,
                                   &display, &args.flag_xdotool).unwrap();
         }
-        move_window_in_grid(id, nlines, ncolumns, line, column,
+        move_window_in_grid(id, nrows, ncolumns, row, column,
                             &args.flag_xdotool, &args.flag_xwininfo);
     }
 }
