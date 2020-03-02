@@ -72,6 +72,14 @@ This command depends on following commands:
 - [xdotool](https://www.semicomplete.com/projects/xdotool/)
 - [xwininfo](https://gitlab.freedesktop.org/xorg/app/xwininfo)
 
+## Frequently Asked Questions
+
+### Does Not Work on XMonad ([#1](https://github.com/HKey/gwip/issues/1))
+
+Please use [XMonad.Hooks.EwmhDesktops](http://hackage.haskell.org/package/xmonad-contrib-0.16/docs/XMonad-Hooks-EwmhDesktops.html) in your xmonad configuration.  
+That is needed to run `xdotool` properly.
+`xdotool` is called from gwip internaly.
+
 ## TODO
 
 - Support multiple display
