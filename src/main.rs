@@ -1,5 +1,5 @@
 use std::process;
-use std::process::Command;
+use std::process::{Command, Output};
 use std::cmp;
 use docopt::Docopt;
 use serde::Deserialize;
@@ -20,14 +20,44 @@ struct DisplayGeometry {
 
 type WindowID = i32;
 
+// Run an external command.
+// If the command returns non zero exit code, this function panics.
+fn run_with_check(command: &[&str]) -> Output {
+    if command.len() < 1 {
+        panic!("Program name is missing");
+    }
+    let program = &command[0];
+    let args = &command[1..];
+    let result = Command::new(program)
+        .args(args)
+        .output();
+
+    match result {
+        Err(e) => panic!("{}", e),
+        Ok(output) => if output.status.success() {
+            output
+        } else {
+            panic!("Command faild: {}\n\
+                    --- status code ---\n\
+                    {}\n\
+                    --- stdout ---\n\
+                    {}\n\
+                    --- stderr ---\n\
+                    {}",
+                   command.join(" "),
+                   match output.status.code() {
+                       Some(n) => format!("{}", n),
+                       None => String::from("none")
+                   },
+                   String::from_utf8(output.stdout).unwrap(),
+                   String::from_utf8(output.stderr).unwrap());
+        }
+    }
+}
+
 // FIXME: unwrapping in utility functions may be not good
 fn get_window_geometry(id: WindowID, xwininfo: &str) -> WindowGeometry {
-    let output = Command::new(xwininfo)
-        .arg("-id")
-        .arg(id.to_string())
-        .output()
-        .expect(&format!("Failed to execute {}", xwininfo))
-        .stdout;
+    let output = run_with_check(&[xwininfo, "-id", &id.to_string()]).stdout;
     let output = String::from_utf8(output).unwrap();
 
     fn parse_value(header: &str, output: &str) -> i32 {
@@ -46,22 +76,14 @@ fn get_window_geometry(id: WindowID, xwininfo: &str) -> WindowGeometry {
 }
 
 fn get_focused_window_id(xdotool: &str) -> WindowID {
-    let output = Command::new(xdotool)
-        .arg("getactivewindow")
-        .output()
-        .expect(&format!("Failed to execute {}", xdotool))
-        .stdout;
+    let output = run_with_check(&[xdotool, "getactivewindow"]).stdout;
     String::from_utf8(output).unwrap()
         .trim()
         .parse().unwrap()
 }
 
 fn get_display_geometry(xdotool: &str) -> DisplayGeometry {
-    let output = Command::new(xdotool)
-        .arg("getdisplaygeometry")
-        .output()
-        .expect(&format!("Failed to execute {}", xdotool))
-        .stdout;
+    let output = run_with_check(&[xdotool, "getdisplaygeometry"]).stdout;
     let output = String::from_utf8(output).unwrap();
     let output = output.trim();
     let result: Vec<&str> = output.split(" ").collect();
@@ -73,13 +95,11 @@ fn get_display_geometry(xdotool: &str) -> DisplayGeometry {
 }
 
 fn move_window(id: WindowID, x: i32, y: i32, xdotool: &str) {
-    Command::new(xdotool)
-        .arg("windowmove")
-        .arg(id.to_string())
-        .arg(x.to_string())
-        .arg(y.to_string())
-        .status()
-        .expect(&format!("Failed to execute {}", xdotool));
+    run_with_check(&[xdotool,
+                     "windowmove",
+                     &id.to_string(),
+                     &x.to_string(),
+                     &y.to_string()]);
 }
 
 fn move_window_in_grid(id: WindowID,
@@ -106,25 +126,21 @@ fn move_window_in_grid(id: WindowID,
     move_window(id, x, y, xdotool);
 }
 
-fn resize_window(id: WindowID, width: i32, height: i32, xdotool: &str)
-                 -> Result<(), std::io::Error> {
-    Command::new(xdotool)
-        .arg("windowsize")
-        .arg(id.to_string())
-        .arg(width.to_string())
-        .arg(height.to_string())
-        .status()
-        .map(|_| ())
+fn resize_window(id: WindowID, width: i32, height: i32, xdotool: &str) {
+    run_with_check(&[xdotool,
+                     "windowsize",
+                     &id.to_string(),
+                     &width.to_string(),
+                     &height.to_string()]);
 }
 
 fn resize_window_to_fill(id: WindowID, nrows: i32, ncolumns: i32,
                          gap_w: i32, gap_h: i32,
-                         display: &DisplayGeometry, xdotool: &str)
-                         -> Result<(), std::io::Error> {
+                         display: &DisplayGeometry, xdotool: &str) {
     let width = display.w / ncolumns - gap_w * 2;
     let height = display.h / nrows - gap_h * 2;
 
-    resize_window(id, width, height, xdotool)
+    resize_window(id, width, height, xdotool);
 }
 
 
@@ -268,7 +284,7 @@ fn main() {
 
             resize_window_to_fill(id, nrows, ncolumns,
                                   gap_w, gap_h,
-                                  &display, &args.flag_xdotool).unwrap();
+                                  &display, &args.flag_xdotool);
         }
         move_window_in_grid(id, nrows, ncolumns, row, column,
                             &args.flag_xdotool, &args.flag_xwininfo);
