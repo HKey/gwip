@@ -102,7 +102,7 @@ fn get_display_geometry(xdotool: &str) -> DisplayGeometry {
 }
 
 fn has_window_decoration_from_xprop(output: &str) -> bool {
-    let regex = Regex::new(r"_MOTIF_WM_HINTS(CARDINAL) = \d+, \d+, (\d+), \d+, \d+").unwrap();
+    let regex = Regex::new(r"_MOTIF_WM_HINTS\(CARDINAL\) = \d+, \d+, (\d+), \d+, \d+").unwrap();
     for line in output.lines() {
         match regex.captures(&line) {
             Some(c) => match c.get(1).unwrap().as_str() {
