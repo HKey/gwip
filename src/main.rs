@@ -18,6 +18,13 @@ struct DisplayGeometry {
     h: i32,
 }
 
+struct WindowDecoration {
+    l: i32,
+    r: i32,
+    t: i32,
+    b: i32,
+}
+
 type WindowID = i32;
 
 // Run an external command.
@@ -94,6 +101,50 @@ fn get_display_geometry(xdotool: &str) -> DisplayGeometry {
     }
 }
 
+fn has_window_decoration_from_xprop(output: &str) -> bool {
+    let regex = Regex::new(r"_MOTIF_WM_HINTS(CARDINAL) = \d+, \d+, (\d+), \d+, \d+").unwrap();
+    for line in output.lines() {
+        match regex.captures(&line) {
+            Some(c) => match c.get(1).unwrap().as_str() {
+                "0" => return false,
+                _ => return true
+            },
+            None => continue
+        }
+    }
+
+    true
+}
+
+fn parse_window_decoration_from_xprop(output: &str) -> Option<WindowDecoration> {
+    let regex = Regex::new(r"_NET_FRAME_EXTENTS\(CARDINAL\) = (\d+), (\d+), (\d+), (\d+)").unwrap();
+    for line in output.lines() {
+        match regex.captures(&line) {
+            Some(c) => return Some(WindowDecoration {
+                l: c.get(1).unwrap().as_str().parse().unwrap(),
+                r: c.get(2).unwrap().as_str().parse().unwrap(),
+                t: c.get(3).unwrap().as_str().parse().unwrap(),
+                b: c.get(4).unwrap().as_str().parse().unwrap()
+            }),
+            None => continue
+        }
+    }
+
+    None
+}
+
+fn get_window_decoration(id: WindowID, xprop: &str) -> Option<WindowDecoration> {
+    let output = run_with_check(&[xprop, "-id", &id.to_string()]).stdout;
+    let output = String::from_utf8(output).unwrap();
+    let decorated = has_window_decoration_from_xprop(&output);
+
+    if decorated {
+        parse_window_decoration_from_xprop(&output)
+    } else {
+        None
+    }
+}
+
 fn move_window(id: WindowID, x: i32, y: i32, xdotool: &str) {
     run_with_check(&[xdotool,
                      "windowmove",
@@ -105,6 +156,7 @@ fn move_window(id: WindowID, x: i32, y: i32, xdotool: &str) {
 fn move_window_in_grid(id: WindowID,
                        nrows: i32, ncolumns: i32,
                        row: i32, column: i32,
+                       decoration: &Option<WindowDecoration>,
                        xdotool: &str, xwininfo: &str) {
     let display = get_display_geometry(xdotool);
     let window = get_window_geometry(id, xwininfo);
@@ -116,12 +168,18 @@ fn move_window_in_grid(id: WindowID,
 
     let cell_w = display.w / ncolumns;
     let cell_h = display.h / nrows;
+    let (win_w, win_h) = if let Some(deco) = decoration {
+        (window.w + deco.l + deco.r,
+         window.h + deco.t + deco.b)
+    } else {
+        (window.w, window.h)
+    };
 
-    let x = cell_w * column + (cell_w - window.w) / 2;
-    let y = cell_h * row + (cell_h - window.h) / 2;
+    let x = cell_w * column + (cell_w - win_w) / 2;
+    let y = cell_h * row + (cell_h - win_h) / 2;
 
-    let x = cmp::max(cmp::min(x, display.w - window.w), 0);
-    let y = cmp::max(cmp::min(y, display.h - window.h), 0);
+    let x = cmp::max(cmp::min(x, display.w - win_w), 0);
+    let y = cmp::max(cmp::min(y, display.h - win_h), 0);
 
     move_window(id, x, y, xdotool);
 }
@@ -136,9 +194,15 @@ fn resize_window(id: WindowID, width: i32, height: i32, xdotool: &str) {
 
 fn resize_window_to_fill(id: WindowID, nrows: i32, ncolumns: i32,
                          gap_w: i32, gap_h: i32,
+                         decoration: &Option<WindowDecoration>,
                          display: &DisplayGeometry, xdotool: &str) {
-    let width = display.w / ncolumns - gap_w * 2;
-    let height = display.h / nrows - gap_h * 2;
+    let mut width = display.w / ncolumns - gap_w * 2;
+    let mut height = display.h / nrows - gap_h * 2;
+
+    if let Some(deco) = decoration {
+        width = width - deco.l - deco.r;
+        height = height - deco.t - deco.b;
+    }
 
     resize_window(id, width, height, xdotool);
 }
@@ -166,8 +230,13 @@ Options:
                              A number means the number of pixels, a percentage
                              means the percentage of the desktop width
                              or height.
+    --ignore-decoration      Ignore window decoration for calcurating
+                             the window size and the window position.
+                             If this opton is set, xprop is not necessary
+                             to run gwip.
     --xdotool=<cmd>          Command of xdotool. [default: xdotool]
     --xwininfo=<cmd>         Command of xwininfo. [default: xwininfo]
+    --xprop=<cmd>            Command of xprop. [default: xprop]
 
 Commands:
     move
@@ -199,8 +268,10 @@ struct Args {
     flag_place: String,
     flag_fill: bool,
     flag_gap: Option<String>,
+    flag_ignore_decoration: bool,
     flag_xdotool: String,
     flag_xwininfo: String,
+    flag_xprop: String,
     cmd_move: bool,
 }
 
@@ -258,6 +329,11 @@ fn main() {
         let column: i32 = parse_place(place[1]);
 
         let id = get_focused_window_id(&args.flag_xdotool);
+        let decoration = if args.flag_ignore_decoration {
+            None
+        } else {
+            get_window_decoration(id, &args.flag_xprop)
+        };
 
         if args.flag_fill {
             let display = get_display_geometry(&args.flag_xdotool);
@@ -284,9 +360,10 @@ fn main() {
 
             resize_window_to_fill(id, nrows, ncolumns,
                                   gap_w, gap_h,
-                                  &display, &args.flag_xdotool);
+                                  &decoration, &display,
+                                  &args.flag_xdotool);
         }
-        move_window_in_grid(id, nrows, ncolumns, row, column,
+        move_window_in_grid(id, nrows, ncolumns, row, column, &decoration,
                             &args.flag_xdotool, &args.flag_xwininfo);
     }
 }

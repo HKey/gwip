@@ -39,8 +39,13 @@ Options:
                              A number means the number of pixels, a percentage
                              means the percentage of the desktop width
                              or height.
+    --ignore-decoration      Ignore window decoration for calcurating
+                             the window size and the window position.
+                             If this opton is set, xprop is not necessary
+                             to run gwip.
     --xdotool=<cmd>          Command of xdotool. [default: xdotool]
     --xwininfo=<cmd>         Command of xwininfo. [default: xwininfo]
+    --xprop=<cmd>            Command of xprop. [default: xprop]
 
 Commands:
     move
@@ -71,6 +76,7 @@ Commands:
 This command depends on following commands:
 - [xdotool](https://www.semicomplete.com/projects/xdotool/)
 - [xwininfo](https://gitlab.freedesktop.org/xorg/app/xwininfo)
+- [xprop](https://gitlab.freedesktop.org/xorg/app/xprop)
 
 ## Frequently Asked Questions
 
